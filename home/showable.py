@@ -37,22 +37,28 @@ class ShowableBlock(StructBlock):
         return path, args, kwargs
 
     def to_python(self, value):
-        struct_value = super().to_python(value)
-        if struct_value is None:
+        if value is None:
             return None
 
+        # Old format: value is not a dict, pass through to child block unchanged
+        if not isinstance(value, dict):
+            return self.child_blocks["content"].to_python(value)
+
+        # New format: extract content and show
+        struct_value = super().to_python(value)
         content = struct_value.get("content")
         show = struct_value.get("show", True)
 
-        # For string content, return a ShowableString
+        if not show:
+            return ShowableString("", show=False)
+
         if isinstance(content, str):
             return ShowableString(content, show)
 
-        # For RichText objects, extract source and wrap in ShowableString
         if isinstance(content, RichText):
             return ShowableString(content.source, show)
 
-        # For other types, return the struct value as-is
+        # Non-string blocks: return struct_value as-is
         return struct_value
 
     def render(self, value, context=None):
