@@ -1,25 +1,22 @@
-from wagtail.blocks import StructBlock, BooleanBlock, StructValue
+from wagtail.blocks import StructBlock, BooleanBlock
+from wagtail.rich_text import RichText
 
 
-class ShowableStructValue(StructValue):
-    """Custom value class that behaves like the wrapped content when stringified."""
+class ShowableString(str):
+    """A string that also carries show/content attributes for ShowableBlock."""
 
-    def __str__(self):
-        if self.get("show", True):
-            content = self.get("content")
-            return str(content) if content is not None else ""
-        return ""
-
-    def __html__(self):
-        return self.__str__()
+    def __new__(cls, content, show=True):
+        text = content if show and content else ""
+        instance = super().__new__(cls, text)
+        instance.show = show
+        instance.content = content
+        return instance
 
 
 class ShowableBlock(StructBlock):
     """
     Wrapper that adds a show/hide toggle to any block.
     """
-
-    value_class = ShowableStructValue
 
     def __init__(self, child_block, **kwargs):
         super().__init__(
@@ -39,7 +36,35 @@ class ShowableBlock(StructBlock):
         kwargs.pop("show", None)
         return path, args, kwargs
 
+    def to_python(self, value):
+        struct_value = super().to_python(value)
+        if struct_value is None:
+            return None
+
+        content = struct_value.get("content")
+        show = struct_value.get("show", True)
+
+        # For string content, return a ShowableString
+        if isinstance(content, str):
+            return ShowableString(content, show)
+
+        # For RichText objects, extract source and wrap in ShowableString
+        if isinstance(content, RichText):
+            return ShowableString(content.source, show)
+
+        # For other types, return the struct value as-is
+        return struct_value
+
     def render(self, value, context=None):
+        # Handle ShowableString (from RichText/string blocks)
+        if isinstance(value, ShowableString):
+            if not value.show:
+                return ""
+            # Wrap back in RichText for proper rendering
+            content = RichText(value.content) if value.content else value.content
+            return self.child_blocks["content"].render(content, context=context)
+
+        # Handle StructValue (for non-string blocks)
         if not value.get("show", True):
             return ""
         content = value.get("content")
