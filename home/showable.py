@@ -1,16 +1,4 @@
 from wagtail.blocks import StructBlock, BooleanBlock
-from wagtail.rich_text import RichText
-
-
-class ShowableString(str):
-    """A string that also carries show/content attributes for ShowableBlock."""
-
-    def __new__(cls, content, show=True):
-        text = content if show and content else ""
-        instance = super().__new__(cls, text)
-        instance.show = show
-        instance.content = content
-        return instance
 
 
 class ShowableBlock(StructBlock):
@@ -40,37 +28,13 @@ class ShowableBlock(StructBlock):
         if value is None:
             return None
 
-        # Old format: value is not a dict, pass through to child block unchanged
+        # Old format: value is not a dict, wrap it in new format
         if not isinstance(value, dict):
-            return self.child_blocks["content"].to_python(value)
+            value = {"content": value, "show": True}
 
-        # New format: extract content and show
-        struct_value = super().to_python(value)
-        content = struct_value.get("content")
-        show = struct_value.get("show", True)
-
-        if not show:
-            return ShowableString("", show=False)
-
-        if isinstance(content, str):
-            return ShowableString(content, show)
-
-        if isinstance(content, RichText):
-            return ShowableString(content.source, show)
-
-        # Non-string blocks: return struct_value as-is
-        return struct_value
+        return super().to_python(value)
 
     def render(self, value, context=None):
-        # Handle ShowableString (from RichText/string blocks)
-        if isinstance(value, ShowableString):
-            if not value.show:
-                return ""
-            # Wrap back in RichText for proper rendering
-            content = RichText(value.content) if value.content else value.content
-            return self.child_blocks["content"].render(content, context=context)
-
-        # Handle StructValue (for non-string blocks)
         if not value.get("show", True):
             return ""
         content = value.get("content")
