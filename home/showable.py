@@ -4,9 +4,6 @@ from wagtail.blocks import StructBlock, BooleanBlock
 class ShowableBlock(StructBlock):
     """
     Wrapper that adds a show/hide toggle to any block.
-
-    When 'show' is unchecked, the block will not render on the live site.
-    The checkbox appears below the wrapped block's widget in admin.
     """
 
     def __init__(self, child_block, **kwargs):
@@ -18,11 +15,21 @@ class ShowableBlock(StructBlock):
             **kwargs
         )
 
+    def deconstruct(self):
+        path, args, kwargs = super().deconstruct()
+        # Pass the original child block as the first positional arg
+        args = (self.child_blocks["content"],)
+        # Remove 'content' and 'show' from kwargs since they're dynamic
+        kwargs.pop("content", None)
+        kwargs.pop("show", None)
+        return path, args, kwargs
+
     def render(self, value, context=None):
         if not value.get("show", True):
             return ""
         content = value.get("content")
         return self.child_blocks["content"].render(content, context=context)
+
 
 
 def add_show(block_list):
