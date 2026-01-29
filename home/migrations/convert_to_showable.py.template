@@ -1,0 +1,108 @@
+"""
+Data migration template for converting StreamField blocks to ShowableBlock format.
+
+Usage:
+1. Copy this file and rename to XXXX_convert_FIELDNAME_to_showable.py
+2. Update the dependencies to point to your previous migration
+3. Update the make_showable_converter calls with your app, model, and field names
+4. Run: python manage.py migrate
+"""
+
+from django.db import migrations
+import json
+
+
+def make_showable_converter(app_label, model_name, field_name):
+    """
+    Factory function to create forward/reverse migrations for any StreamField.
+
+    Args:
+        app_label: The Django app name (e.g., 'home')
+        model_name: The model class name (e.g., 'GenericPage')
+        field_name: The StreamField attribute name (e.g., 'body')
+
+    Returns:
+        Tuple of (forward_migration_func, reverse_migration_func)
+    """
+
+    def convert_to_showable(apps, schema_editor):
+        Model = apps.get_model(app_label, model_name)
+
+        for obj in Model.objects.all():
+            field_value = getattr(obj, field_name, None)
+            if not field_value:
+                continue
+
+            if isinstance(field_value, str):
+                try:
+                    data = json.loads(field_value)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            else:
+                data = field_value.raw_data if hasattr(field_value, 'raw_data') else field_value
+
+            modified = False
+            for block in data:
+                if isinstance(block.get('value'), dict) and 'content' in block['value']:
+                    continue
+
+                block['value'] = {
+                    'content': block['value'],
+                    'show': True
+                }
+                modified = True
+
+            if modified:
+                Model.objects.filter(pk=obj.pk).update(**{field_name: json.dumps(data)})
+
+    def revert_showable(apps, schema_editor):
+        Model = apps.get_model(app_label, model_name)
+
+        for obj in Model.objects.all():
+            field_value = getattr(obj, field_name, None)
+            if not field_value:
+                continue
+
+            if isinstance(field_value, str):
+                try:
+                    data = json.loads(field_value)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            else:
+                data = field_value.raw_data if hasattr(field_value, 'raw_data') else field_value
+
+            modified = False
+            for block in data:
+                if isinstance(block.get('value'), dict) and 'content' in block['value']:
+                    block['value'] = block['value']['content']
+                    modified = True
+
+            if modified:
+                Model.objects.filter(pk=obj.pk).update(**{field_name: json.dumps(data)})
+
+    return convert_to_showable, revert_showable
+
+
+# ==============================================================================
+# CONFIGURE YOUR MIGRATIONS HERE
+# ==============================================================================
+
+# Example: Convert 'body' field on 'GenericPage' model in 'home' app
+convert_body, revert_body = make_showable_converter('home', 'GenericPage', 'body')
+
+# Add more fields as needed:
+# convert_sidebar, revert_sidebar = make_showable_converter('home', 'GenericPage', 'sidebar')
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        # Update this to your previous migration
+        ('home', '0001_initial'),
+    ]
+
+    operations = [
+        migrations.RunPython(convert_body, revert_body),
+        # Add more operations for additional fields:
+        # migrations.RunPython(convert_sidebar, revert_sidebar),
+    ]
