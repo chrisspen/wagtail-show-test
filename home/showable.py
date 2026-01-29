@@ -16,12 +16,14 @@ class ShowableBlock(StructBlock):
         )
 
     def deconstruct(self):
-        path, args, kwargs = super().deconstruct()
-        # Pass the original child block as the first positional arg
+        # Build from scratch - don't use super() which includes child blocks in kwargs
+        path = "%s.%s" % (self.__class__.__module__, self.__class__.__name__)
         args = (self.child_blocks["content"],)
-        # Remove 'content' and 'show' from kwargs since they're dynamic
-        kwargs.pop("content", None)
-        kwargs.pop("show", None)
+        kwargs = {}
+        if self.meta.label:
+            kwargs["label"] = self.meta.label
+        if self.meta.icon != "placeholder":
+            kwargs["icon"] = self.meta.icon
         return path, args, kwargs
 
     def to_python(self, value):

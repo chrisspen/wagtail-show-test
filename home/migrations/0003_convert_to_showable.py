@@ -1,20 +1,5 @@
 """
-Data migration template for converting StreamField blocks to ShowableBlock format.
-
-Usage:
-1. Copy this file and rename to XXXX_convert_FIELDNAME_to_showable.py
-2. Update TABLE_NAME and PK_COLUMN for your model
-3. Update the dependencies to point to your previous migration
-4. Update the AlterField with your model/field names
-5. Run: python manage.py migrate
-
-For Wagtail Page subclasses:
-    TABLE_NAME = 'yourapp_yourpagetype'
-    PK_COLUMN = 'page_ptr_id'
-
-For regular Django models:
-    TABLE_NAME = 'yourapp_yourmodel'
-    PK_COLUMN = 'id'
+Converts existing StreamField data to ShowableBlock format and alters field definition.
 """
 
 from django.db import migrations
@@ -24,20 +9,11 @@ import wagtail.fields
 import home.showable
 
 
-# ==============================================================================
-# CONFIGURE THESE FOR YOUR MODEL
-# ==============================================================================
-TABLE_NAME = 'home_richtextpage'
-FIELD_NAME = 'body'
-PK_COLUMN = 'page_ptr_id'  # Use 'id' for non-Page models
-
-
 def convert_to_showable(apps, schema_editor):
-    """Convert existing data from old format to ShowableBlock format."""
     from django.db import connection
     cursor = connection.cursor()
 
-    cursor.execute(f'SELECT {PK_COLUMN}, {FIELD_NAME} FROM {TABLE_NAME}')
+    cursor.execute('SELECT page_ptr_id, body FROM home_richtextpage')
     rows = cursor.fetchall()
 
     for pk, field_value in rows:
@@ -54,11 +30,9 @@ def convert_to_showable(apps, schema_editor):
 
         modified = False
         for block in data:
-            # Skip if already in new format
             if isinstance(block.get('value'), dict) and 'content' in block['value']:
                 continue
 
-            # Convert to new format
             block['value'] = {
                 'content': block['value'],
                 'show': True
@@ -67,17 +41,16 @@ def convert_to_showable(apps, schema_editor):
 
         if modified:
             cursor.execute(
-                f'UPDATE {TABLE_NAME} SET {FIELD_NAME} = %s WHERE {PK_COLUMN} = %s',
+                'UPDATE home_richtextpage SET body = %s WHERE page_ptr_id = %s',
                 [json.dumps(data), pk]
             )
 
 
 def revert_to_old_format(apps, schema_editor):
-    """Revert data back to old format."""
     from django.db import connection
     cursor = connection.cursor()
 
-    cursor.execute(f'SELECT {PK_COLUMN}, {FIELD_NAME} FROM {TABLE_NAME}')
+    cursor.execute('SELECT page_ptr_id, body FROM home_richtextpage')
     rows = cursor.fetchall()
 
     for pk, field_value in rows:
@@ -100,7 +73,7 @@ def revert_to_old_format(apps, schema_editor):
 
         if modified:
             cursor.execute(
-                f'UPDATE {TABLE_NAME} SET {FIELD_NAME} = %s WHERE {PK_COLUMN} = %s',
+                'UPDATE home_richtextpage SET body = %s WHERE page_ptr_id = %s',
                 [json.dumps(data), pk]
             )
 
@@ -108,16 +81,12 @@ def revert_to_old_format(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        # Update this to your previous migration
-        ('home', '0001_initial'),
+        ('home', '0002_create_sample_page'),
     ]
 
     operations = [
-        # First: convert existing data to new format
         migrations.RunPython(convert_to_showable, revert_to_old_format),
 
-        # Then: alter field definition to use ShowableBlock
-        # Update model_name and field definition for your model
         migrations.AlterField(
             model_name='richtextpage',
             name='body',

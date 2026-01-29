@@ -12,9 +12,12 @@ class RichTextPage(Page):
     """A page with a StreamField containing RichText blocks."""
 
     body = StreamField(
-        add_show([
+        add_show(
+        [
             ("richtext", RichTextBlock()),
-        ]),
+        ]
+        )
+        ,
         use_json_field=True,
         blank=True,
     )
