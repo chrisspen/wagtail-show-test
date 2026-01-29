@@ -1,10 +1,25 @@
-from wagtail.blocks import StructBlock, BooleanBlock
+from wagtail.blocks import StructBlock, BooleanBlock, StructValue
+
+
+class ShowableStructValue(StructValue):
+    """Custom value class that behaves like the wrapped content when stringified."""
+
+    def __str__(self):
+        if self.get("show", True):
+            content = self.get("content")
+            return str(content) if content is not None else ""
+        return ""
+
+    def __html__(self):
+        return self.__str__()
 
 
 class ShowableBlock(StructBlock):
     """
     Wrapper that adds a show/hide toggle to any block.
     """
+
+    value_class = ShowableStructValue
 
     def __init__(self, child_block, **kwargs):
         super().__init__(
