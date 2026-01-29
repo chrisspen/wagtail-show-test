@@ -36,7 +36,10 @@ class Command(BaseCommand):
             body=[
                 {
                     "type": "richtext",
-                    "value": "<h2>Welcome to Wagtail</h2><p>This is a sample page with a <strong>RichText block</strong>.</p><p>You can edit this content in the Wagtail admin at <a href=\"/admin/\">/admin/</a>.</p><ul><li>Rich text formatting</li><li>Links and images</li><li>Lists and headings</li></ul>",
+                    "value": {
+                        "content": "<h2>Welcome to Wagtail</h2><p>This is a sample page with a <strong>RichText block</strong>.</p><p>You can edit this content in the Wagtail admin at <a href=\"/admin/\">/admin/</a>.</p><ul><li>Rich text formatting</li><li>Links and images</li><li>Lists and headings</li></ul>",
+                        "show": True,
+                    },
                 }
             ],
         )
